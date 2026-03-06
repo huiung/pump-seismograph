@@ -156,6 +156,14 @@ export default function TokenDetail({ token, onClose }: TokenDetailProps) {
             {/* Links */}
             <div className="mt-auto flex flex-col gap-2">
               <a
+                href={`https://pump.fun/coin/${token.mintAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded border border-[#222222] bg-[#0a0a0a] px-3 py-2 text-center font-mono text-xs text-[#f59e0b] transition-colors hover:border-[#f59e0b]"
+              >
+                View on Pump.fun
+              </a>
+              <a
                 href={`https://dexscreener.com/solana/${token.mintAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"

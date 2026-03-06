@@ -95,6 +95,13 @@ export default function Home() {
     const { category, timestamp, initialBuyVolume } = token;
     const amplitude = Math.min(initialBuyVolume / 20, 1); // normalize 0-1
 
+    // Skip Unknown tokens from seismograph and activity tracking
+    if (category === 'Unknown') {
+      // Still add to token log for reference
+      setTokenLog((prev) => [token, ...prev].slice(0, 200));
+      return;
+    }
+
     // Update seismograph data
     setSeismographData((prev) => {
       const themePoints = prev[category] || [];

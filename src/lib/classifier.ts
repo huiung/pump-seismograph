@@ -11,6 +11,46 @@ export interface TokenEvent {
   category?: string;
 }
 
+// Levenshtein distance for fuzzy matching
+function editDistance(a: string, b: string): number {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix: number[][] = [];
+  for (let i = 0; i <= a.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+  return matrix[a.length][b.length];
+}
+
+// Check if text matches a keyword (exact substring or fuzzy)
+function matchesKeyword(textWords: string[], text: string, keyword: string): boolean {
+  // Exact substring match (handles "dogecoin" matching "doge")
+  if (text.includes(keyword)) return true;
+
+  // Fuzzy match: check each word against keyword
+  // Only for keywords with 4+ chars to avoid false positives
+  if (keyword.length >= 4) {
+    for (const word of textWords) {
+      if (word.length < 3) continue;
+      const maxDist = keyword.length >= 6 ? 2 : 1;
+      if (editDistance(word, keyword) <= maxDist) return true;
+    }
+  }
+
+  return false;
+}
+
 // Stop words to ignore when detecting emerging themes
 const STOP_WORDS = new Set([
   'the', 'of', 'to', 'and', 'a', 'in', 'is', 'it', 'for', 'on',
@@ -23,9 +63,8 @@ const STOP_WORDS = new Set([
 ]);
 
 const MIN_WORD_LENGTH = 3;
-const EMERGE_THRESHOLD = 5; // min occurrences to create a new category
+const EMERGE_THRESHOLD = 5;
 
-// Dynamic color palette for emerging themes
 const DYNAMIC_COLORS = [
   '#e879f9', '#34d399', '#fb923c', '#38bdf8', '#f87171',
   '#a78bfa', '#fbbf24', '#2dd4bf', '#f472b6', '#818cf8',
@@ -39,11 +78,12 @@ export class DynamicClassifier {
 
   classifyToken(name: string, symbol: string, description?: string): string {
     const text = `${name} ${symbol} ${description || ''}`.toLowerCase();
+    const words = text.replace(/[^a-z0-9\s]/g, '').split(/\s+/);
 
     // Check static categories first
     for (const [category, keywords] of Object.entries(THEME_KEYWORDS)) {
       for (const keyword of keywords) {
-        if (text.includes(keyword)) {
+        if (matchesKeyword(words, text, keyword)) {
           return category;
         }
       }
@@ -52,7 +92,7 @@ export class DynamicClassifier {
     // Check dynamic categories
     for (const [category, keywords] of Object.entries(this.dynamicKeywords)) {
       for (const keyword of keywords) {
-        if (text.includes(keyword)) {
+        if (matchesKeyword(words, text, keyword)) {
           return category;
         }
       }
@@ -72,7 +112,6 @@ export class DynamicClassifier {
       const count = (this.wordCounts.get(word) || 0) + 1;
       this.wordCounts.set(word, count);
 
-      // Word hit threshold — create new category
       if (count === EMERGE_THRESHOLD && !this.dynamicKeywords[word]) {
         const categoryName = word.charAt(0).toUpperCase() + word.slice(1);
         this.dynamicKeywords[categoryName] = [word];
@@ -93,13 +132,13 @@ export class DynamicClassifier {
   }
 }
 
-// Simple function for backward compatibility
 export function classifyToken(name: string, symbol: string, description?: string): string {
   const text = `${name} ${symbol} ${description || ''}`.toLowerCase();
+  const words = text.replace(/[^a-z0-9\s]/g, '').split(/\s+/);
 
   for (const [category, keywords] of Object.entries(THEME_KEYWORDS)) {
     for (const keyword of keywords) {
-      if (text.includes(keyword)) {
+      if (matchesKeyword(words, text, keyword)) {
         return category;
       }
     }

@@ -1,6 +1,6 @@
 import { TokenEvent } from '@/lib/classifier';
 
-const BITQUERY_WSS = 'wss://streaming.bitquery.io/eap';
+const BITQUERY_WSS = 'wss://streaming.bitquery.io/eap?token=';
 
 const PUMP_SUBSCRIPTION = `
 subscription {
@@ -52,7 +52,7 @@ export function createPumpFunSubscription(
     if (closed) return;
 
     try {
-      ws = new WebSocket(BITQUERY_WSS, 'graphql-ws');
+      ws = new WebSocket(`${BITQUERY_WSS}${apiKey}`, 'graphql-ws');
     } catch (err) {
       console.error('[Bitquery] WebSocket creation failed:', err);
       onConnectionFail?.();

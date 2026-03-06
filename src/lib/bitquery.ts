@@ -20,7 +20,6 @@ subscription {
           Name
           Symbol
           MintAddress
-          Description
         }
         Amount
         AmountInUSD

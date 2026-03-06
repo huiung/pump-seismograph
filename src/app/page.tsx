@@ -7,7 +7,7 @@ import Seismograph, {
 import RichterSidebar, { ThemeEntry } from "@/components/RichterSidebar";
 import TokenDetail, { TokenInfo } from "@/components/TokenDetail";
 import EarthquakeAlert, { AlertItem } from "@/components/EarthquakeAlert";
-import { TokenEvent, classifyToken } from "@/lib/classifier";
+import { TokenEvent, DynamicClassifier } from "@/lib/classifier";
 import { THEME_COLORS, THEME_KEYWORDS } from "@/data/keywords";
 import {
   ThemeActivity,
@@ -88,6 +88,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const dismissedRef = useRef<Set<string>>(new Set());
   const seenTokensRef = useRef<Set<string>>(new Set());
+  const classifierRef = useRef(new DynamicClassifier());
 
   // Process a new token event
   const processToken = useCallback((token: ProcessedToken) => {
@@ -179,7 +180,7 @@ export default function Home() {
           if (seenTokensRef.current.has(event.mintAddress)) return;
           seenTokensRef.current.add(event.mintAddress);
 
-          const category = classifyToken(
+          const category = classifierRef.current.classifyToken(
             event.name,
             event.symbol,
             event.description
@@ -208,9 +209,12 @@ export default function Home() {
     }
   }, [processToken, startDemo]);
 
+  // Merge static + dynamic colors
+  const allColors = { ...classifierRef.current.getColors(), ...THEME_COLORS };
+
   // Build sidebar data
   const themeEntries: ThemeEntry[] = Object.keys({
-    ...THEME_COLORS,
+    ...allColors,
     ...themeActivities,
   })
     .filter((name) => name !== "Unknown" || themeActivities[name])
@@ -227,7 +231,7 @@ export default function Home() {
         richterLevel,
         alertLevel: getAlertLevel(richterLevel),
         tokenCount: activity.count,
-        color: THEME_COLORS[name] || "#666666",
+        color: allColors[name] || "#666666",
       };
     });
 
@@ -315,7 +319,7 @@ export default function Home() {
           <Seismograph
             data={seismographData}
             onTokenClick={handleTokenClick}
-            themeColors={THEME_COLORS}
+            themeColors={allColors}
           />
 
           {/* Recent tokens feed */}
@@ -340,7 +344,7 @@ export default function Home() {
                     })
                   }
                   className="rounded border border-[#222] bg-[#111] px-2 py-1 font-mono text-[10px] transition-colors hover:border-[#444]"
-                  style={{ color: THEME_COLORS[t.category] || "#666" }}
+                  style={{ color: allColors[t.category] || "#666" }}
                 >
                   {t.name}
                 </button>

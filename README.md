@@ -8,11 +8,12 @@ A real-time dashboard that visualizes Pump.fun token activity as seismic waves. 
 
 ## How It Works
 
-1. **Stream** — Connects to Pump.fun trades in real-time via Bitquery WebSocket
+1. **Stream** — Connects to Pump.fun trades in real-time via Helius WebSocket API
 2. **Classify** — Each token is categorized by theme using fuzzy keyword matching (typo-tolerant)
 3. **Detect** — Emerging themes auto-generate new categories when unknown tokens cluster
 4. **Visualize** — Theme activity renders as parallel seismograph lines with D3.js (log-scale amplitude)
 5. **Alert** — When a theme's activity exceeds the rolling average, an earthquake warning triggers
+6. **Surge Detection** — Tracks per-token volume and flags tokens with meaningful trading activity
 
 ## Tech Stack
 
@@ -31,7 +32,7 @@ npm install
 npm run dev
 ```
 
-The app runs in **demo mode** without API keys. For live Pump.fun data:
+For live Pump.fun data, add your API keys:
 
 ```bash
 cp .env.example .env.local
@@ -39,7 +40,7 @@ cp .env.example .env.local
 
 | Variable | Source | Required |
 |----------|--------|----------|
-| `NEXT_PUBLIC_BITQUERY_API_KEY` | [bitquery.io](https://bitquery.io) (free tier: 10K points/mo) | For live data |
+| `NEXT_PUBLIC_HELIUS_API_KEY` | [helius.dev](https://helius.dev) (free tier: 1M credits/mo) | For live data |
 | `NEXT_PUBLIC_SUPABASE_URL` | [supabase.com](https://supabase.com) | For history |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | [supabase.com](https://supabase.com) | For history |
 
@@ -51,7 +52,8 @@ cp .env.example .env.local
 - **Fuzzy Classification** — Levenshtein distance matching catches typos and variations
 - **Richter Scale Sidebar** — Live ranking of theme activity (1.0 - 10.0)
 - **Earthquake Warnings** — Auto-triggered alerts with pulse/shake animation when theme activity spikes
-- **Notable Tremors** — Only tokens with meaningful volume ($10+) shown in the feed, reducing rug noise
+- **Volume Surge Detection** — Per-token volume tracking flags tokens with $50+ volume or 3+ trades
+- **Notable Tremors** — Only meaningful tokens shown in the feed, filtering out low-effort rugs
 - **Token Details** — Click to see token info with Pump.fun and DexScreener links
 - **Mobile Responsive** — Adaptive labels, collapsible sidebar, full-width panels on small screens
 
@@ -96,7 +98,7 @@ src/
     TokenDetail.tsx       # Token info panel
     EarthquakeAlert.tsx   # Warning banner
   lib/
-    bitquery.ts           # WebSocket client
+    bitquery.ts           # Helius WebSocket client
     classifier.ts         # Fuzzy classifier + dynamic themes
     supabase.ts           # DB client
     thresholds.ts         # Alert logic

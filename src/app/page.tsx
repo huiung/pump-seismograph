@@ -97,7 +97,7 @@ export default function Home() {
 
     // Skip Unknown tokens from seismograph and activity tracking
     if (category === 'Unknown') {
-      if (initialBuyVolume >= 100) {
+      if (initialBuyVolume >= 10) {
         setTokenLog((prev) => [token, ...prev].slice(0, 200));
       }
       return;
@@ -142,7 +142,7 @@ export default function Home() {
     });
 
     // Update token log — only show tokens with meaningful volume ($100+)
-    if (initialBuyVolume >= 100) {
+    if (initialBuyVolume >= 10) {
       setTokenLog((prev) => [token, ...prev].slice(0, 200));
     }
   }, []);
@@ -336,7 +336,7 @@ export default function Home() {
           {/* Recent tokens feed */}
           <div className="mt-4 border-t border-[#1a1a1a] pt-3">
             <h3 className="mb-2 font-mono text-[10px] tracking-wider text-gray-600">
-              RECENT LAUNCHES
+              NOTABLE TREMORS
             </h3>
             <div className="flex flex-wrap gap-1.5">
               {tokenLog.slice(0, 20).map((t, i) => (

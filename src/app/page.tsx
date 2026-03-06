@@ -87,8 +87,20 @@ export default function Home() {
   const [tokenLog, setTokenLog] = useState<ProcessedToken[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const dismissedRef = useRef<Set<string>>(new Set());
-  const seenTokensRef = useRef<Set<string>>(new Set());
   const classifierRef = useRef(new DynamicClassifier());
+
+  // Per-token volume tracking for surge detection
+  const tokenVolumeRef = useRef<Map<string, {
+    token: ProcessedToken;
+    totalVolume: number;
+    tradeCount: number;
+    firstSeen: number;
+    lastNotified: number; // last time we added to Notable Tremors
+  }>>(new Map());
+
+  const SURGE_VOLUME = 50;       // $50+ total volume to be notable
+  const SURGE_TRADES = 3;        // 3+ trades means activity
+  const SURGE_COOLDOWN = 60_000; // don't re-notify for same token within 60s
 
   // Process a new token event
   const processToken = useCallback((token: ProcessedToken) => {
@@ -98,9 +110,6 @@ export default function Home() {
 
     // Skip Unknown tokens from seismograph and activity tracking
     if (category === 'Unknown') {
-      if (initialBuyVolume >= 10) {
-        setTokenLog((prev) => [token, ...prev].slice(0, 200));
-      }
       return;
     }
 
@@ -142,10 +151,19 @@ export default function Home() {
       };
     });
 
-    // Update token log — only show tokens with meaningful volume ($100+)
-    if (initialBuyVolume >= 10) {
-      setTokenLog((prev) => [token, ...prev].slice(0, 200));
-    }
+  }, []);
+
+  // Cleanup old token volume data every 5 minutes
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const cutoff = Date.now() - 10 * 60 * 1000; // 10 min
+      tokenVolumeRef.current.forEach((data, addr) => {
+        if (data.firstSeen < cutoff) {
+          tokenVolumeRef.current.delete(addr);
+        }
+      });
+    }, 5 * 60 * 1000);
+    return () => clearInterval(cleanup);
   }, []);
 
   // Check alerts after activities update
@@ -187,16 +205,45 @@ export default function Home() {
       const sub = createPumpFunSubscription(
         apiKey,
         (event) => {
-          // Skip tokens we've already seen
-          if (seenTokensRef.current.has(event.mintAddress)) return;
-          seenTokensRef.current.add(event.mintAddress);
-
           const category = classifierRef.current.classifyToken(
             event.name,
             event.symbol,
             event.description
           );
-          processToken({ ...event, category });
+          const processed = { ...event, category };
+
+          // Always update seismograph + theme activity
+          processToken(processed);
+
+          // Track per-token volume for surge detection
+          const now = Date.now();
+          const existing = tokenVolumeRef.current.get(event.mintAddress);
+          if (existing) {
+            existing.totalVolume += event.initialBuyVolume;
+            existing.tradeCount += 1;
+            existing.token = processed; // keep latest data
+
+            // Surge detected: volume threshold crossed + enough trades
+            if (
+              existing.totalVolume >= SURGE_VOLUME &&
+              existing.tradeCount >= SURGE_TRADES &&
+              now - existing.lastNotified > SURGE_COOLDOWN
+            ) {
+              existing.lastNotified = now;
+              setTokenLog((prev) => [
+                { ...processed, initialBuyVolume: existing.totalVolume },
+                ...prev.filter((t) => t.mintAddress !== event.mintAddress),
+              ].slice(0, 200));
+            }
+          } else {
+            tokenVolumeRef.current.set(event.mintAddress, {
+              token: processed,
+              totalVolume: event.initialBuyVolume,
+              tradeCount: 1,
+              firstSeen: now,
+              lastNotified: 0,
+            });
+          }
         },
         (err) => console.error("Bitquery error:", err),
         () => {

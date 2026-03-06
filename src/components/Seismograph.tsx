@@ -139,7 +139,7 @@ export default function Seismograph({
             }
           }
           // Baseline noise
-          const noise = (Math.random() - 0.5) * 0.03;
+          const noise = (Math.random() - 0.5) * 0.08;
           const y = centerY - (amp + noise) * amplitudeScale;
           linePoints.push({ x, y, token: closestToken });
         }

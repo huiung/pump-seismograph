@@ -93,7 +93,8 @@ export default function Home() {
   // Process a new token event
   const processToken = useCallback((token: ProcessedToken) => {
     const { category, timestamp, initialBuyVolume } = token;
-    const amplitude = Math.min(initialBuyVolume / 20, 1); // normalize 0-1
+    // Log scale amplitude: even small trades produce visible spikes
+    const amplitude = Math.min(Math.log10(Math.max(initialBuyVolume, 1) + 1) / 3, 1);
 
     // Skip Unknown tokens from seismograph and activity tracking
     if (category === 'Unknown') {

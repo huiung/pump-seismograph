@@ -151,12 +151,26 @@ export default function Home() {
     setAlerts(newAlerts);
   }, [themeActivities]);
 
+  // Start demo mode fallback
+  const startDemo = useCallback(() => {
+    const allThemes = Object.keys(THEME_KEYWORDS);
+    for (const theme of allThemes) {
+      setSeismographData((prev) => ({ ...prev, [theme]: [] }));
+    }
+    const interval = setInterval(() => {
+      const token = generateMockToken();
+      processToken(token);
+    }, 800 + Math.random() * 1500);
+    return interval;
+  }, [processToken]);
+
   // Connect to data source
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_BITQUERY_API_KEY;
+    let demoInterval: ReturnType<typeof setInterval> | null = null;
 
     if (apiKey) {
-      // Live mode
+      // Live mode — with fallback to demo on connection failure
       const sub = createPumpFunSubscription(
         apiKey,
         (event) => {
@@ -167,25 +181,27 @@ export default function Home() {
           );
           processToken({ ...event, category });
         },
-        (err) => console.error("Bitquery error:", err)
+        (err) => console.error("Bitquery error:", err),
+        () => {
+          // Connection failed — fall back to demo
+          console.warn("Falling back to demo mode");
+          if (!demoInterval) {
+            demoInterval = startDemo();
+          }
+        }
       );
-      return () => sub.close();
+      return () => {
+        sub.close();
+        if (demoInterval) clearInterval(demoInterval);
+      };
     } else {
-      // Demo mode — generate mock tokens
-      // Generate initial burst
-      const allThemes = Object.keys(THEME_KEYWORDS);
-      for (const theme of allThemes) {
-        setSeismographData((prev) => ({ ...prev, [theme]: [] }));
-      }
-
-      const interval = setInterval(() => {
-        const token = generateMockToken();
-        processToken(token);
-      }, 800 + Math.random() * 1500);
-
-      return () => clearInterval(interval);
+      // No API key — demo mode
+      demoInterval = startDemo();
+      return () => {
+        if (demoInterval) clearInterval(demoInterval);
+      };
     }
-  }, [processToken]);
+  }, [processToken, startDemo]);
 
   // Build sidebar data
   const themeEntries: ThemeEntry[] = Object.keys({

@@ -1,6 +1,6 @@
 import { TokenEvent } from '@/lib/classifier';
 
-const BITQUERY_WSS = 'wss://streaming.bitquery.io/eap?token=';
+const BITQUERY_WSS = 'wss://streaming.bitquery.io/eap';
 
 const PUMP_SUBSCRIPTION = `
 subscription {
@@ -41,25 +41,67 @@ export function createPumpFunSubscription(
   apiKey: string,
   onEvent: (event: TokenEvent) => void,
   onError?: (error: unknown) => void,
+  onConnectionFail?: () => void,
 ): { close: () => void } {
   let ws: WebSocket | null = null;
   let reconnectAttempts = 0;
   let closed = false;
+  let hasReceivedData = false;
 
   function connect() {
     if (closed) return;
 
-    ws = new WebSocket(`${BITQUERY_WSS}${apiKey}`);
+    try {
+      ws = new WebSocket(BITQUERY_WSS, 'graphql-ws');
+    } catch (err) {
+      console.error('[Bitquery] WebSocket creation failed:', err);
+      onConnectionFail?.();
+      return;
+    }
 
     ws.onopen = () => {
+      console.log('[Bitquery] WebSocket connected');
       reconnectAttempts = 0;
-      ws?.send(JSON.stringify({ type: 'start', id: '1', payload: { query: PUMP_SUBSCRIPTION } }));
+      // graphql-ws protocol: send connection_init with auth
+      ws?.send(JSON.stringify({
+        type: 'connection_init',
+        payload: { Authorization: `Bearer ${apiKey}` },
+      }));
     };
 
     ws.onmessage = (msg) => {
       try {
         const data = JSON.parse(msg.data);
+
+        // Handle connection_ack -> send subscription
+        if (data.type === 'connection_ack') {
+          console.log('[Bitquery] Connection acknowledged, subscribing...');
+          ws?.send(JSON.stringify({
+            type: 'start',
+            id: '1',
+            payload: { query: PUMP_SUBSCRIPTION },
+          }));
+          return;
+        }
+
+        if (data.type === 'connection_error') {
+          console.error('[Bitquery] Connection error:', data.payload);
+          onError?.(data.payload);
+          if (!hasReceivedData && reconnectAttempts >= 2) {
+            onConnectionFail?.();
+          }
+          return;
+        }
+
+        if (data.type === 'error') {
+          console.error('[Bitquery] Subscription error:', data.payload);
+          onError?.(data.payload);
+          return;
+        }
+
         if (data.type !== 'data' || !data.payload?.data?.Solana?.DEXTradeByTokens) return;
+
+        hasReceivedData = true;
 
         for (const trade of data.payload.data.Solana.DEXTradeByTokens) {
           const currency = trade.Trade.Currency;
@@ -80,11 +122,20 @@ export function createPumpFunSubscription(
     };
 
     ws.onerror = (err) => {
+      console.error('[Bitquery] WebSocket error:', err);
       onError?.(err);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      console.log('[Bitquery] WebSocket closed:', ev.code, ev.reason);
       if (closed) return;
+
+      if (!hasReceivedData && reconnectAttempts >= 3) {
+        console.warn('[Bitquery] Failed to connect after 3 attempts, falling back');
+        onConnectionFail?.();
+        return;
+      }
+
       const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
       reconnectAttempts++;
       setTimeout(connect, delay);
@@ -92,6 +143,14 @@ export function createPumpFunSubscription(
   }
 
   connect();
+
+  // Timeout: if no data after 10s, fall back
+  setTimeout(() => {
+    if (!hasReceivedData && !closed) {
+      console.warn('[Bitquery] No data received after 10s, falling back to demo');
+      onConnectionFail?.();
+    }
+  }, 10000);
 
   return {
     close: () => {

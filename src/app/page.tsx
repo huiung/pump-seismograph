@@ -225,8 +225,8 @@ export default function Home() {
 
             // Surge detected: volume threshold crossed + enough trades
             if (
-              existing.totalVolume >= SURGE_VOLUME &&
-              existing.tradeCount >= SURGE_TRADES &&
+              (existing.totalVolume >= SURGE_VOLUME ||
+              existing.tradeCount >= SURGE_TRADES) &&
               now - existing.lastNotified > SURGE_COOLDOWN
             ) {
               existing.lastNotified = now;

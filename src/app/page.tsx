@@ -197,7 +197,7 @@ export default function Home() {
 
   // Connect to data source
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_BITQUERY_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
     let demoInterval: ReturnType<typeof setInterval> | null = null;
 
     if (apiKey) {

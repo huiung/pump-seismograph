@@ -1,40 +1,120 @@
 import { TokenEvent } from '@/lib/classifier';
 
-const BITQUERY_WSS = 'wss://streaming.bitquery.io/eap?token=';
+const PUMP_FUN_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 
-const PUMP_SUBSCRIPTION = `
-subscription {
-  Solana {
-    DEXTradeByTokens(
-      where: {
-        Trade: {
-          Dex: {
-            ProtocolName: { is: "pump" }
+// Cache token metadata to avoid repeated API calls
+const metadataCache = new Map<string, { name: string; symbol: string } | null>();
+const pendingFetches = new Map<string, Promise<{ name: string; symbol: string } | null>>();
+
+async function fetchTokenMetadata(
+  mintAddress: string,
+  apiKey: string,
+): Promise<{ name: string; symbol: string } | null> {
+  if (metadataCache.has(mintAddress)) return metadataCache.get(mintAddress) || null;
+  if (pendingFetches.has(mintAddress)) return pendingFetches.get(mintAddress) || null;
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'metadata',
+          method: 'getAsset',
+          params: { id: mintAddress, displayOptions: { showFungible: true } },
+        }),
+      });
+      const { result } = await res.json();
+      if (result?.content?.metadata) {
+        const meta = {
+          name: result.content.metadata.name || mintAddress.slice(0, 8),
+          symbol: result.content.metadata.symbol || '???',
+        };
+        metadataCache.set(mintAddress, meta);
+        return meta;
+      }
+      // Fallback: try token_info
+      if (result?.token_info?.symbol) {
+        const meta = {
+          name: result.token_info.symbol,
+          symbol: result.token_info.symbol,
+        };
+        metadataCache.set(mintAddress, meta);
+        return meta;
+      }
+      metadataCache.set(mintAddress, null);
+      return null;
+    } catch (err) {
+      console.error('[Helius] Metadata fetch failed:', err);
+      return null;
+    } finally {
+      pendingFetches.delete(mintAddress);
+    }
+  })();
+
+  pendingFetches.set(mintAddress, promise);
+  return promise;
+}
+
+function extractTokenInfo(txData: Record<string, unknown>): {
+  mintAddress: string;
+  solAmount: number;
+} | null {
+  try {
+    const result = txData as Record<string, unknown>;
+    const tx = result.transaction as Record<string, unknown> | undefined;
+    const meta = result.meta as Record<string, unknown> | undefined;
+    if (!tx || !meta) return null;
+
+    const message = tx.message as Record<string, unknown> | undefined;
+    if (!message) return null;
+
+    // Extract mint address from token balance changes
+    const postTokenBalances = meta.postTokenBalances as Array<Record<string, unknown>> | undefined;
+    let mintAddress = '';
+    if (postTokenBalances && postTokenBalances.length > 0) {
+      mintAddress = (postTokenBalances[0].mint as string) || '';
+    }
+
+    if (!mintAddress) {
+      // Try account keys - for pump.fun, token mint is often in the accounts
+      const accountKeys = message.accountKeys as Array<Record<string, unknown>> | undefined;
+      if (accountKeys && accountKeys.length > 1) {
+        // Filter out known programs and find likely mint address
+        for (const key of accountKeys) {
+          const pubkey = (key.pubkey as string) || (key as unknown as string);
+          if (
+            pubkey &&
+            pubkey !== PUMP_FUN_PROGRAM &&
+            pubkey.length >= 32 &&
+            !pubkey.startsWith('11111') &&
+            !pubkey.startsWith('Token')
+          ) {
+            mintAddress = pubkey;
+            break;
           }
         }
-        Transaction: { Result: { Success: true } }
-      }
-    ) {
-      Trade {
-        Currency {
-          Name
-          Symbol
-          MintAddress
-        }
-        Amount
-        AmountInUSD
-        Side {
-          Amount
-          AmountInUSD
-        }
-      }
-      Block {
-        Time
       }
     }
+
+    if (!mintAddress) return null;
+
+    // Extract SOL amount from balance changes
+    const preBalances = meta.preBalances as number[] | undefined;
+    const postBalances = meta.postBalances as number[] | undefined;
+    let solAmount = 0;
+    if (preBalances && postBalances && preBalances.length > 0) {
+      // First account is usually the payer - calculate SOL spent
+      const diff = Math.abs(preBalances[0] - postBalances[0]);
+      solAmount = diff / 1e9; // lamports to SOL
+    }
+
+    return { mintAddress, solAmount };
+  } catch {
+    return null;
   }
 }
-`;
 
 export function createPumpFunSubscription(
   apiKey: string,
@@ -50,70 +130,82 @@ export function createPumpFunSubscription(
   function connect() {
     if (closed) return;
 
+    const wsUrl = `wss://mainnet.helius-rpc.com/?api-key=${apiKey}`;
+
     try {
-      ws = new WebSocket(`${BITQUERY_WSS}${apiKey}`, 'graphql-ws');
+      ws = new WebSocket(wsUrl);
     } catch (err) {
-      console.error('[Bitquery] WebSocket creation failed:', err);
+      console.error('[Helius] WebSocket creation failed:', err);
       onConnectionFail?.();
       return;
     }
 
     ws.onopen = () => {
-      console.log('[Bitquery] WebSocket connected');
+      console.log('[Helius] WebSocket connected');
       reconnectAttempts = 0;
-      // graphql-ws protocol: send connection_init with auth
+
+      // Subscribe to Pump.fun program transactions
       ws?.send(JSON.stringify({
-        type: 'connection_init',
-        payload: { Authorization: `Bearer ${apiKey}` },
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'transactionSubscribe',
+        params: [
+          {
+            failed: false,
+            accountInclude: [PUMP_FUN_PROGRAM],
+          },
+          {
+            commitment: 'confirmed',
+            encoding: 'jsonParsed',
+            transactionDetails: 'full',
+            maxSupportedTransactionVersion: 0,
+          },
+        ],
       }));
+
+      // Keep-alive ping every 30s
+      const pingInterval = setInterval(() => {
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ jsonrpc: '2.0', id: 'ping', method: 'ping' }));
+        } else {
+          clearInterval(pingInterval);
+        }
+      }, 30000);
     };
 
     ws.onmessage = (msg) => {
       try {
         const data = JSON.parse(msg.data);
 
-        // Handle connection_ack -> send subscription
-        if (data.type === 'connection_ack') {
-          console.log('[Bitquery] Connection acknowledged, subscribing...');
-          ws?.send(JSON.stringify({
-            type: 'start',
-            id: '1',
-            payload: { query: PUMP_SUBSCRIPTION },
-          }));
+        // Skip subscription confirmation
+        if (data.result !== undefined && !data.params) {
+          console.log('[Helius] Subscription confirmed:', data.result);
           return;
         }
 
-        if (data.type === 'connection_error') {
-          console.error('[Bitquery] Connection error:', data.payload);
-          onError?.(data.payload);
-          if (!hasReceivedData && reconnectAttempts >= 2) {
-            onConnectionFail?.();
-          }
-          return;
-        }
+        // Handle transaction notifications
+        if (data.method === 'transactionNotification' && data.params?.result) {
+          hasReceivedData = true;
+          const txResult = data.params.result;
+          const txData = txResult.transaction;
 
-        if (data.type === 'error') {
-          console.error('[Bitquery] Subscription error:', data.payload);
-          onError?.(data.payload);
-          return;
-        }
+          if (!txData) return;
 
-        if (data.type !== 'data' || !data.payload?.data?.Solana?.DEXTradeByTokens) return;
+          const tokenInfo = extractTokenInfo(txData);
+          if (!tokenInfo || !tokenInfo.mintAddress) return;
 
-        hasReceivedData = true;
-
-        for (const trade of data.payload.data.Solana.DEXTradeByTokens) {
-          const currency = trade.Trade.Currency;
-          const event: TokenEvent = {
-            name: currency.Name || '',
-            symbol: currency.Symbol || '',
-            description: currency.Description || undefined,
-            mintAddress: currency.MintAddress || '',
-            timestamp: new Date(trade.Block.Time).getTime(),
-            initialBuyVolume: trade.Trade.AmountInUSD || 0,
-            tradeAmount: trade.Trade.Side?.AmountInUSD || 0,
-          };
-          onEvent(event);
+          // Fetch metadata asynchronously and emit event
+          fetchTokenMetadata(tokenInfo.mintAddress, apiKey).then((meta) => {
+            const event: TokenEvent = {
+              name: meta?.name || tokenInfo.mintAddress.slice(0, 8),
+              symbol: meta?.symbol || '???',
+              mintAddress: tokenInfo.mintAddress,
+              timestamp: Date.now(),
+              initialBuyVolume: tokenInfo.solAmount * 150, // rough SOL->USD estimate
+              tradeAmount: tokenInfo.solAmount,
+            };
+            onEvent(event);
+          });
         }
       } catch (err) {
         onError?.(err);
@@ -121,16 +213,16 @@ export function createPumpFunSubscription(
     };
 
     ws.onerror = (err) => {
-      console.error('[Bitquery] WebSocket error:', err);
+      console.error('[Helius] WebSocket error:', err);
       onError?.(err);
     };
 
     ws.onclose = (ev) => {
-      console.log('[Bitquery] WebSocket closed:', ev.code, ev.reason);
+      console.log('[Helius] WebSocket closed:', ev.code, ev.reason);
       if (closed) return;
 
       if (!hasReceivedData && reconnectAttempts >= 3) {
-        console.warn('[Bitquery] Failed to connect after 3 attempts, falling back');
+        console.warn('[Helius] Failed to connect after 3 attempts, falling back');
         onConnectionFail?.();
         return;
       }
@@ -143,13 +235,13 @@ export function createPumpFunSubscription(
 
   connect();
 
-  // Timeout: if no data after 10s, fall back
+  // Timeout: if no data after 15s, fall back
   setTimeout(() => {
     if (!hasReceivedData && !closed) {
-      console.warn('[Bitquery] No data received after 10s, falling back to demo');
+      console.warn('[Helius] No data received after 15s, falling back to demo');
       onConnectionFail?.();
     }
-  }, 10000);
+  }, 15000);
 
   return {
     close: () => {

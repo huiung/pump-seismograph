@@ -270,8 +270,9 @@ export default function Home() {
       {/* Header */}
       <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3">
         <div className="flex items-center gap-3">
-          <h1 className="animate-flicker glow-green font-mono text-lg font-bold tracking-wider text-[#00ff41]">
-            PUMP SEISMOGRAPH
+          <h1 className="animate-flicker glow-green font-mono text-sm sm:text-lg font-bold tracking-wider text-[#00ff41]">
+            <span className="hidden sm:inline">PUMP SEISMOGRAPH</span>
+            <span className="sm:hidden">SEISMOGRAPH</span>
           </h1>
         </div>
         <div className="flex items-center gap-3">

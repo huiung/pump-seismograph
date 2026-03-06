@@ -15,9 +15,10 @@ export interface SeismographProps {
 }
 
 const TIME_WINDOW = 60_000; // 60 seconds
-const LINE_HEIGHT = 60;
-const LABEL_WIDTH = 120;
-const RIGHT_PAD = 20;
+const LINE_HEIGHT = 50;
+const LABEL_WIDTH_DESKTOP = 120;
+const LABEL_WIDTH_MOBILE = 60;
+const RIGHT_PAD = 10;
 
 export default function Seismograph({
   data,
@@ -49,7 +50,8 @@ export default function Seismograph({
     import("d3").then((d3) => {
       const themes = Object.keys(data);
       const totalHeight = themes.length * LINE_HEIGHT;
-      const chartWidth = width - LABEL_WIDTH - RIGHT_PAD;
+      const labelWidth = width < 500 ? LABEL_WIDTH_MOBILE : LABEL_WIDTH_DESKTOP;
+      const chartWidth = width - labelWidth - RIGHT_PAD;
       const now = Date.now();
       const tMin = now - TIME_WINDOW;
 
@@ -67,7 +69,7 @@ export default function Seismograph({
       // Grid lines (vertical time markers)
       const gridGroup = sel.append("g");
       for (let t = 0; t <= 60; t += 5) {
-        const x = LABEL_WIDTH + (t / 60) * chartWidth;
+        const x = labelWidth + (t / 60) * chartWidth;
         gridGroup
           .append("line")
           .attr("x1", x)
@@ -82,7 +84,7 @@ export default function Seismograph({
       for (let i = 0; i <= themes.length; i++) {
         gridGroup
           .append("line")
-          .attr("x1", LABEL_WIDTH)
+          .attr("x1", labelWidth)
           .attr("y1", i * LINE_HEIGHT)
           .attr("x2", width - RIGHT_PAD)
           .attr("y2", i * LINE_HEIGHT)
@@ -93,7 +95,7 @@ export default function Seismograph({
       const xScale = d3
         .scaleLinear()
         .domain([tMin, now])
-        .range([LABEL_WIDTH, LABEL_WIDTH + chartWidth]);
+        .range([labelWidth, labelWidth + chartWidth]);
 
       themes.forEach((theme, i) => {
         const color = themeColors[theme] || "#00ff41";
@@ -106,9 +108,11 @@ export default function Seismograph({
           .attr("x", 8)
           .attr("y", centerY + 4)
           .attr("fill", color)
-          .attr("font-size", "11px")
+          .attr("font-size", width < 500 ? "9px" : "11px")
           .attr("font-family", "monospace")
-          .text(theme.length > 14 ? theme.slice(0, 13) + "\u2026" : theme);
+          .text(width < 500
+            ? (theme.length > 6 ? theme.slice(0, 5) + "\u2026" : theme)
+            : (theme.length > 14 ? theme.slice(0, 13) + "\u2026" : theme));
 
         // Build line data: filter to time window, add baseline noise between points
         const points = (data[theme] || [])

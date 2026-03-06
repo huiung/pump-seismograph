@@ -171,14 +171,6 @@ export default function TokenDetail({ token, onClose }: TokenDetailProps) {
               >
                 View on DexScreener
               </a>
-              <a
-                href={`https://birdeye.so/token/${token.mintAddress}?chain=solana`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded border border-[#222222] bg-[#0a0a0a] px-3 py-2 text-center font-mono text-xs text-[#60a5fa] transition-colors hover:border-[#60a5fa]"
-              >
-                View on Birdeye
-              </a>
             </div>
           </div>
         )}

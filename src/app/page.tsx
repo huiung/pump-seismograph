@@ -87,6 +87,7 @@ export default function Home() {
   const [tokenLog, setTokenLog] = useState<ProcessedToken[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const dismissedRef = useRef<Set<string>>(new Set());
+  const seenTokensRef = useRef<Set<string>>(new Set());
 
   // Process a new token event
   const processToken = useCallback((token: ProcessedToken) => {
@@ -174,6 +175,10 @@ export default function Home() {
       const sub = createPumpFunSubscription(
         apiKey,
         (event) => {
+          // Skip tokens we've already seen
+          if (seenTokensRef.current.has(event.mintAddress)) return;
+          seenTokensRef.current.add(event.mintAddress);
+
           const category = classifyToken(
             event.name,
             event.symbol,

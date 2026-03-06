@@ -15,6 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://pump-seismograph.vercel.app"),
   title: "Pump Seismograph - Memecoin Earthquake Monitor",
   description:
     "Real-time seismograph visualization of Pump.fun token launches. Detect foreshock patterns before the next big memecoin.",
@@ -22,14 +23,12 @@ export const metadata: Metadata = {
     title: "Pump Seismograph",
     description:
       "Real-time seismograph visualization of Pump.fun token launches. Detect foreshock patterns before the next big memecoin.",
-    images: ["/og-image.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Pump Seismograph",
     description:
       "Real-time seismograph visualization of Pump.fun token launches.",
-    images: ["/og-image.png"],
   },
 };
 

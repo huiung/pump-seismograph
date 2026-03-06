@@ -15,7 +15,7 @@ export interface SeismographProps {
 }
 
 const TIME_WINDOW = 60_000; // 60 seconds
-const LINE_HEIGHT = 50;
+const LINE_HEIGHT = 64;
 const LABEL_WIDTH_DESKTOP = 120;
 const LABEL_WIDTH_MOBILE = 60;
 const RIGHT_PAD = 10;
@@ -138,9 +138,11 @@ export default function Seismograph({
               }
             }
           }
-          // Baseline noise
-          const noise = (Math.random() - 0.5) * 0.08;
-          const y = centerY - (amp + noise) * amplitudeScale;
+          // Exponential scaling: makes high amplitude much more dramatic
+          const scaledAmp = amp * amp * amp; // cubic — 0.2→0.008, 0.5→0.125, 1.0→1.0
+          // Baseline noise (proportional — quieter when no spikes)
+          const noise = (Math.random() - 0.5) * (scaledAmp > 0.01 ? 0.15 : 0.05);
+          const y = centerY - (scaledAmp + noise) * amplitudeScale;
           linePoints.push({ x, y, token: closestToken });
         }
 

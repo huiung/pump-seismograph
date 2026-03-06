@@ -85,7 +85,6 @@ export default function Home() {
   const [selectedToken, setSelectedToken] = useState<TokenInfo | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [tokenLog, setTokenLog] = useState<ProcessedToken[]>([]);
-  const [isDemo, setIsDemo] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const dismissedRef = useRef<Set<string>>(new Set());
 
@@ -173,8 +172,6 @@ export default function Home() {
       return () => sub.close();
     } else {
       // Demo mode — generate mock tokens
-      setIsDemo(true);
-
       // Generate initial burst
       const allThemes = Object.keys(THEME_KEYWORDS);
       for (const theme of allThemes) {
@@ -251,21 +248,14 @@ export default function Home() {
           <h1 className="animate-flicker glow-green font-mono text-lg font-bold tracking-wider text-[#00ff41]">
             PUMP SEISMOGRAPH
           </h1>
-          {isDemo && (
-            <span className="rounded border border-yellow-800 bg-yellow-900/30 px-2 py-0.5 font-mono text-[10px] text-yellow-500">
-              DEMO MODE
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                isDemo ? "bg-yellow-500" : "bg-green-500"
-              } animate-status-pulse`}
+              className="inline-block h-2 w-2 rounded-full bg-green-500 animate-status-pulse"
             />
             <span className="font-mono text-[10px] text-gray-500">
-              {isDemo ? "SIMULATED" : "LIVE"}
+              LIVE
             </span>
           </div>
           <a
@@ -331,7 +321,7 @@ export default function Home() {
                   className="rounded border border-[#222] bg-[#111] px-2 py-1 font-mono text-[10px] transition-colors hover:border-[#444]"
                   style={{ color: THEME_COLORS[t.category] || "#666" }}
                 >
-                  ${t.symbol}
+                  {t.name}
                 </button>
               ))}
             </div>

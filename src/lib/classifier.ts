@@ -63,7 +63,7 @@ const STOP_WORDS = new Set([
 ]);
 
 const MIN_WORD_LENGTH = 3;
-const EMERGE_THRESHOLD = 5;
+const EMERGE_THRESHOLD = 30; // need 30+ occurrences with Helius volume
 
 const DYNAMIC_COLORS = [
   '#e879f9', '#34d399', '#fb923c', '#38bdf8', '#f87171',

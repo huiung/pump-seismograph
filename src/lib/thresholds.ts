@@ -6,8 +6,8 @@ export interface ThemeActivity {
 }
 
 const WINDOW_MS = 30 * 60 * 1000; // 30 minutes
-const BASE_FREQUENCY = 2; // baseline: 2 tokens per 30 min
-const BASE_VOLUME = 10; // baseline SOL volume
+const BASE_FREQUENCY = 100; // baseline: ~100 tokens per 30 min on Helius
+const BASE_VOLUME = 500; // baseline USD volume
 
 export function calculateRichterLevel(activity: ThemeActivity): number {
   const now = Date.now();
@@ -15,7 +15,7 @@ export function calculateRichterLevel(activity: ThemeActivity): number {
   const frequency = recentTimestamps.length;
   const freqRatio = Math.max(frequency / BASE_FREQUENCY, 1);
   const volRatio = Math.max(activity.volume / BASE_VOLUME, 1);
-  const raw = Math.log10(freqRatio * volRatio) * 3 + 1;
+  const raw = Math.log10(freqRatio * volRatio) * 2.5 + 1;
   return Math.min(Math.max(Math.round(raw * 10) / 10, 1), 10);
 }
 

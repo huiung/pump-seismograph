@@ -97,8 +97,9 @@ export default function Home() {
 
     // Skip Unknown tokens from seismograph and activity tracking
     if (category === 'Unknown') {
-      // Still add to token log for reference
-      setTokenLog((prev) => [token, ...prev].slice(0, 200));
+      if (initialBuyVolume >= 100) {
+        setTokenLog((prev) => [token, ...prev].slice(0, 200));
+      }
       return;
     }
 
@@ -140,8 +141,10 @@ export default function Home() {
       };
     });
 
-    // Update token log (keep last 200)
-    setTokenLog((prev) => [token, ...prev].slice(0, 200));
+    // Update token log — only show tokens with meaningful volume ($100+)
+    if (initialBuyVolume >= 100) {
+      setTokenLog((prev) => [token, ...prev].slice(0, 200));
+    }
   }, []);
 
   // Check alerts after activities update

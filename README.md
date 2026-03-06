@@ -2,16 +2,17 @@
 
 **Read the memecoin market like a seismograph. When foreshocks hit, the mainshock follows.**
 
-A real-time dashboard that visualizes new Pump.fun token launches as seismic activity. Tokens are classified into themes (AI, Dog, Cat, Political, etc.), and each theme gets its own seismograph channel. When a theme shows a sudden burst of copycat launches — a "foreshock" pattern — the system triggers an earthquake warning, signaling a potential breakout.
+A real-time dashboard that visualizes Pump.fun token activity as seismic waves. Tokens are classified into themes (AI, Dog, Cat, Political, etc.), and each theme gets its own seismograph channel. When a theme shows a sudden burst of copycat launches — a "foreshock" pattern — the system triggers an earthquake warning, signaling a potential breakout.
 
 > Before every major memecoin, there's a swarm of copycats. This tool detects the swarm.
 
 ## How It Works
 
-1. **Stream** — Connects to Pump.fun trades via Bitquery WebSocket (or runs in demo mode)
-2. **Classify** — Each new token is categorized by theme using keyword matching
-3. **Visualize** — Theme activity renders as parallel seismograph lines with D3.js
-4. **Alert** — When a theme's launch frequency exceeds the rolling average, an earthquake warning triggers
+1. **Stream** — Connects to Pump.fun trades in real-time via Bitquery WebSocket
+2. **Classify** — Each token is categorized by theme using fuzzy keyword matching (typo-tolerant)
+3. **Detect** — Emerging themes auto-generate new categories when unknown tokens cluster
+4. **Visualize** — Theme activity renders as parallel seismograph lines with D3.js (log-scale amplitude)
+5. **Alert** — When a theme's activity exceeds the rolling average, an earthquake warning triggers
 
 ## Tech Stack
 
@@ -30,15 +31,11 @@ npm install
 npm run dev
 ```
 
-No API keys needed — the app launches in **demo mode** with simulated token events.
-
-### Live Data (Optional)
+The app runs in **demo mode** without API keys. For live Pump.fun data:
 
 ```bash
 cp .env.example .env.local
 ```
-
-Add your keys to `.env.local`:
 
 | Variable | Source | Required |
 |----------|--------|----------|
@@ -48,39 +45,42 @@ Add your keys to `.env.local`:
 
 ## Features
 
-- **9 Theme Channels** — AI, Dog, Cat, Political, Pepe, Celebrity, Food, Space, Gaming
-- **Real-time Seismograph** — D3.js multi-channel visualization with CRT scanline effect
+- **Real-time Seismograph** — D3.js multi-channel visualization with CRT scanline effect and log-scale amplitude
+- **7 Built-in Themes** — AI, Dog, Cat, Political, Pepe, Influencer, Gaming
+- **Dynamic Theme Detection** — Unknown tokens that cluster around a word auto-generate new categories
+- **Fuzzy Classification** — Levenshtein distance matching catches typos and variations
 - **Richter Scale Sidebar** — Live ranking of theme activity (1.0 - 10.0)
-- **Earthquake Warnings** — Auto-triggered alerts when theme activity spikes
-- **Token Details** — Click any spike to see token info with DexScreener/Birdeye links
-- **Demo Mode** — Works without any API keys or configuration
-- **Mobile Responsive** — Collapsible sidebar for smaller screens
+- **Earthquake Warnings** — Auto-triggered alerts with pulse/shake animation when theme activity spikes
+- **Notable Tremors** — Only tokens with meaningful volume ($10+) shown in the feed, reducing rug noise
+- **Token Details** — Click to see token info with Pump.fun and DexScreener links
+- **Mobile Responsive** — Adaptive labels, collapsible sidebar, full-width panels on small screens
 
 ## Theme Categories
 
-| Theme | Color | Keywords |
-|-------|-------|----------|
+| Theme | Color | Example Keywords |
+|-------|-------|------------------|
 | AI | Cyan | ai, gpt, neural, llm, bot, agent... |
 | Dog | Orange | doge, shiba, inu, bonk, puppy... |
 | Cat | Pink | cat, kitty, meow, nyan, purr... |
-| Political | Red | trump, maga, elon, biden, vote... |
+| Political | Red | trump, maga, biden, vote... |
 | Pepe | Green | pepe, frog, kek, wojak, based... |
-| Celebrity | Yellow | drake, kanye, swift, kardashian... |
-| Food | Orange-Red | pizza, burger, sushi, taco, coffee... |
-| Space | Purple | moon, mars, rocket, galaxy, alien... |
-| Gaming | Sky Blue | game, esport, steam, rpg, pvp... |
+| Influencer | Yellow | elon, musk, drake, swift, streamer... |
+| Gaming | Sky Blue | gaming, esport, fortnite, minecraft... |
+| *Dynamic* | *Auto-assigned* | *Auto-detected from trending unknown tokens* |
 
 ## Roadmap
 
 - [x] Real-time seismograph visualization
-- [x] Theme classification engine
+- [x] Fuzzy theme classification engine
+- [x] Dynamic emerging theme detection
 - [x] Richter scale alert system
-- [x] Demo mode
+- [x] Volume-based noise filtering
+- [x] Mobile responsive design
 - [ ] Historical overlay (past mainshock patterns)
 - [ ] Sound effects for earthquake warnings
-- [ ] Custom theme creation
 - [ ] Telegram/Discord alert bot
-- [ ] Multi-language support
+- [ ] Token price tracking via DexScreener API
+- [ ] Multi-chain support (Base, ETH)
 
 ## Project Structure
 
@@ -97,7 +97,7 @@ src/
     EarthquakeAlert.tsx   # Warning banner
   lib/
     bitquery.ts           # WebSocket client
-    classifier.ts         # Theme classifier
+    classifier.ts         # Fuzzy classifier + dynamic themes
     supabase.ts           # DB client
     thresholds.ts         # Alert logic
   data/

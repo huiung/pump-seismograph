@@ -15,27 +15,19 @@ export const THEME_KEYWORDS: Record<string, string[]> = {
   Political: [
     'trump', 'biden', 'maga', 'democrat', 'republican', 'president',
     'election', 'vote', 'congress', 'political', 'kamala', 'obama',
-    'elon', 'musk',
   ],
   Pepe: [
     'pepe', 'frog', 'kek', 'pepecoin', 'rare', 'wojak', 'chad',
     'based', 'meme',
   ],
-  Celebrity: [
-    'celebrity', 'famous', 'star', 'rapper', 'singer', 'actor',
-    'drake', 'kanye', 'swift', 'beyonce', 'kim', 'kardashian',
-  ],
-  Food: [
-    'food', 'pizza', 'burger', 'sushi', 'taco', 'cookie', 'cake',
-    'donut', 'coffee', 'beer', 'wine', 'banana',
-  ],
-  Space: [
-    'space', 'moon', 'mars', 'rocket', 'nasa', 'cosmos', 'galaxy',
-    'star', 'stellar', 'orbit', 'astro', 'alien', 'ufo',
+  Influencer: [
+    'elon', 'musk', 'drake', 'kanye', 'swift', 'beyonce', 'kardashian',
+    'influencer', 'youtuber', 'streamer', 'tiktoker', 'podcast',
+    'andrew', 'tate', 'mr beast', 'pewdiepie',
   ],
   Gaming: [
-    'game', 'gaming', 'gamer', 'esport', 'play', 'xbox',
-    'playstation', 'nintendo', 'steam', 'rpg', 'mmorpg', 'pvp',
+    'gaming', 'gamer', 'esport', 'xbox', 'playstation', 'nintendo',
+    'rpg', 'mmorpg', 'pvp', 'fortnite', 'minecraft', 'roblox',
   ],
 };
 
@@ -45,9 +37,7 @@ export const THEME_COLORS: Record<string, string> = {
   Cat: '#ff69b4',
   Political: '#ff0000',
   Pepe: '#00ff41',
-  Celebrity: '#ffff00',
-  Food: '#ff4500',
-  Space: '#9400d3',
+  Influencer: '#ffff00',
   Gaming: '#00bfff',
   Unknown: '#666666',
 };
